@@ -1,0 +1,24 @@
+// RDP brute force followed by successful authentication
+//
+// Intended use: Microsoft Sentinel scheduled analytics rule.
+// The rule correlates failed and successful Windows logons by source IP and
+// target account within a short time window.
+
+let failed =
+    WindowsEvent
+    | where EventID == 4625
+    | project FailedTime = TimeGenerated,
+              IpAddress,
+              TargetAccount;
+
+let success =
+    WindowsEvent
+    | where EventID == 4624
+    | project SuccessTime = TimeGenerated,
+              IpAddress,
+              TargetAccount;
+
+failed
+| join kind=inner (success) on IpAddress, TargetAccount
+| where SuccessTime - FailedTime between (0min .. 10min)
+| project FailedTime, SuccessTime, IpAddress, TargetAccount
